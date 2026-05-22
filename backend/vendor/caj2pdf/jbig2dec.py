@@ -13,16 +13,18 @@
 
 
 from ctypes import *
+import os
 import struct
 
 import platform
 
+_lib_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "lib", "bin")
 arch = platform.architecture()
 if (arch[1] == 'WindowsPE'):
     if (arch[0] == '64bit'):
-        libjbig2codec = cdll.LoadLibrary("./lib/bin/libjbig2codec-w64.dll")
+        libjbig2codec = cdll.LoadLibrary(os.path.join(_lib_dir, "libjbig2codec-w64.dll"))
     else:
-        libjbig2codec = cdll.LoadLibrary("./lib/bin/libjbig2codec-w32.dll")
+        libjbig2codec = cdll.LoadLibrary(os.path.join(_lib_dir, "libjbig2codec-w32.dll"))
 else:
     libjbig2codec = cdll.LoadLibrary("./libjbig2codec.so")
 

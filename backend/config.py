@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import sys
+from contextlib import contextmanager
 from pathlib import Path
 
 APP_NAME = "CAJ 转 PDF"
@@ -73,23 +74,50 @@ def mutool_path() -> str:
     return "mutool"
 
 
+def _prepend_path(env: dict[str, str], directory: Path) -> None:
+    if not directory.is_dir():
+        return
+    existing = env.get("PATH", "")
+    env["PATH"] = f"{directory}{os.pathsep}{existing}" if existing else str(directory)
+
+
 def lib_env() -> dict[str, str]:
     env = os.environ.copy()
     bundled = resource_bin_dir()
     if bundled:
+        _prepend_path(env, bundled)
         lib_dir = bundled / "lib"
         if lib_dir.is_dir():
-            key = "PATH" if sys.platform == "win32" else "DYLD_LIBRARY_PATH"
-            existing = env.get(key, "")
-            env[key] = f"{lib_dir}{os.pathsep}{existing}" if existing else str(lib_dir)
-    vendor_lib = VENDOR_CAJ2PDF / "lib"
-    if vendor_lib.is_dir():
+            if sys.platform == "win32":
+                _prepend_path(env, lib_dir)
+            else:
+                key = "DYLD_LIBRARY_PATH" if sys.platform == "darwin" else "LD_LIBRARY_PATH"
+                existing = env.get(key, "")
+                env[key] = f"{lib_dir}{os.pathsep}{existing}" if existing else str(lib_dir)
+    vendor_lib_bin = VENDOR_CAJ2PDF / "lib" / "bin"
+    if vendor_lib_bin.is_dir():
         if sys.platform == "win32":
-            key = "PATH"
-        elif sys.platform == "darwin":
-            key = "DYLD_LIBRARY_PATH"
+            _prepend_path(env, vendor_lib_bin)
         else:
-            key = "LD_LIBRARY_PATH"
-        existing = env.get(key, "")
-        env[key] = f"{vendor_lib}{os.pathsep}{existing}" if existing else str(vendor_lib)
+            key = "DYLD_LIBRARY_PATH" if sys.platform == "darwin" else "LD_LIBRARY_PATH"
+            existing = env.get(key, "")
+            env[key] = (
+                f"{vendor_lib_bin}{os.pathsep}{existing}" if existing else str(vendor_lib_bin)
+            )
     return env
+
+
+@contextmanager
+def conversion_runtime():
+    """Apply bundled binary paths and caj2pdf working directory for conversion."""
+    env = lib_env()
+    old_env = os.environ.copy()
+    old_cwd = os.getcwd()
+    os.environ.update(env)
+    os.chdir(VENDOR_CAJ2PDF)
+    try:
+        yield
+    finally:
+        os.environ.clear()
+        os.environ.update(old_env)
+        os.chdir(old_cwd)

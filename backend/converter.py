@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import os
 import shutil
+import subprocess
 from dataclasses import dataclass
 
-from backend.config import lib_env, mutool_path, setup_caj2pdf_path
+from backend.config import conversion_runtime, mutool_path, setup_caj2pdf_path
 
 
 @dataclass
@@ -25,28 +26,41 @@ def check_mutool_available() -> tuple[bool, str]:
     return False, "未找到 mutool。请安装 MuPDF（macOS: brew install mupdf）或确保安装包内置 mutool。"
 
 
+def _patch_cajparser_mutool() -> None:
+    import cajparser  # type: ignore[import-untyped]
+
+    tool = mutool_path()
+
+    def mutool_check_output(args, *a, **kw):
+        if args and args[0] == "mutool":
+            args = [tool, *args[1:]]
+        return subprocess.check_output(args, *a, **kw)
+
+    cajparser.check_output = mutool_check_output
+
+
 def convert_caj_to_pdf(source_path: str, output_path: str) -> ConversionResult:
     setup_caj2pdf_path()
     ok, mutool_msg = check_mutool_available()
     if not ok:
         return ConversionResult(success=False, error=mutool_msg)
 
-    env = lib_env()
-    if mutool_msg != "mutool":
-        bin_dir = os.path.dirname(mutool_msg)
-        path_key = "PATH"
-        env[path_key] = f"{bin_dir}{os.pathsep}{env.get(path_key, '')}"
+    source = os.path.abspath(source_path)
+    output = os.path.abspath(output_path)
 
     try:
         from cajparser import CAJParser  # type: ignore[import-untyped]
     except ImportError as exc:
         return ConversionResult(success=False, error=f"无法加载 caj2pdf: {exc}")
 
+    _patch_cajparser_mutool()
+
     try:
-        parser = CAJParser(source_path)
-        format_type = getattr(parser, "format", None)
-        parser.convert(output_path)
-        if not os.path.isfile(output_path):
+        with conversion_runtime():
+            parser = CAJParser(source)
+            format_type = getattr(parser, "format", None)
+            parser.convert(output)
+        if not os.path.isfile(output):
             return ConversionResult(
                 success=False,
                 error="转换完成但未生成 PDF 文件",
@@ -54,7 +68,7 @@ def convert_caj_to_pdf(source_path: str, output_path: str) -> ConversionResult:
             )
         return ConversionResult(
             success=True,
-            output_path=output_path,
+            output_path=output,
             format_type=format_type,
         )
     except Exception as exc:  # noqa: BLE001 — caj2pdf raises varied errors
