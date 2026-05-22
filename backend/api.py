@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -141,7 +142,8 @@ class Api:
             if sys.platform == "darwin":
                 subprocess.run(["open", str(folder)], check=True)
             elif sys.platform == "win32":
-                subprocess.run(["explorer", str(folder)], check=True)
+                # explorer 常会打开目录却返回 1，用 startfile 更可靠
+                os.startfile(folder)
             else:
                 subprocess.run(["xdg-open", str(folder)], check=True)
             return {"ok": True}
