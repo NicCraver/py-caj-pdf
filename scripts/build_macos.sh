@@ -12,4 +12,7 @@ python3 -m pip install -e . pyinstaller
 echo "==> PyInstaller 打包"
 pyinstaller scripts/caj-pdf.spec --noconfirm
 
-echo "==> 完成: dist/CAJ转PDF.app (macOS) 或 dist/CAJ转PDF/ (Windows)"
+echo "==> 创建 DMG"
+hdiutil create -volname "CAJ 转 PDF" -srcfolder "dist/CAJ转PDF.app" -ov -format UDZO "CAJ-PDF-macOS.dmg"
+
+echo "==> 完成: dist/CAJ转PDF.app, CAJ-PDF-macOS.dmg"

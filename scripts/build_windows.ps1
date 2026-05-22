@@ -14,4 +14,11 @@ python -m pip install -e . pyinstaller
 Write-Host "==> PyInstaller 打包"
 pyinstaller scripts/caj-pdf.spec --noconfirm
 
-Write-Host "==> 完成: dist\CAJ转PDF\"
+Write-Host "==> Inno Setup 安装包"
+$iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+if (-not (Test-Path $iscc)) {
+    Write-Error "未找到 Inno Setup，请先安装: https://jrsoftware.org/isinfo.php"
+}
+& $iscc "scripts/installer.iss"
+
+Write-Host "==> 完成: dist\CAJ转PDF\ 与 CAJ-PDF-Windows-Setup.exe"
