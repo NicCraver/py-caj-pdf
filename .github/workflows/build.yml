@@ -73,8 +73,8 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
-          $ver = "1.24.10"
-          $url = "https://mupdf.com/downloads/archive/mupdf-$ver-windows.zip"
+          $ver = "1.23.0"
+          $url = "https://github.com/ArtifexSoftware/mupdf-downloads/releases/download/$ver/mupdf-$ver-windows.zip"
           Invoke-WebRequest -Uri $url -OutFile mupdf.zip
           Expand-Archive -Path mupdf.zip -DestinationPath mupdf-extract
           $mutool = Get-ChildItem -Path mupdf-extract -Recurse -Filter mutool.exe | Select-Object -First 1
