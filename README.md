@@ -38,9 +38,11 @@ cd frontend && npm install && npm run build && cd ..
 # 启动应用（macOS 推荐，Dock / 菜单栏显示正确名称）
 ./scripts/run_macos.sh
 
-# 或直接运行 Python 模块（Dock 可能仍显示 Python）
+# 或直接运行 Python 模块（改前端后需先 npm run build）
 python -m backend.main
 ```
+
+> **说明**：应用加载的是 `frontend/dist` 静态文件，不是 Vue 源码。`run_macos.sh` 会在启动前自动执行 `npm run build`；若用 `python -m backend.main`，改前端后需手动构建。**「打开文件夹」按钮仅在当前批次转换结束（已完成 / 已取消）后显示。**
 
 ## 打包分发
 

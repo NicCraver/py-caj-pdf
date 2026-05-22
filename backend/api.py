@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
+from pathlib import Path
 from typing import Any
 
 import webview
@@ -40,12 +43,23 @@ class Api:
             "mutool_path": mutool if ok else "",
         }
 
-    def get_settings(self) -> dict[str, str]:
-        return {
+    def get_settings(self) -> dict[str, Any]:
+        input_dir = self.history.get_setting("last_input_dir", "")
+        output_dir = self.history.get_setting("last_output_dir", "")
+        settings: dict[str, Any] = {
             "theme": self.history.get_setting("theme", "system"),
-            "last_input_dir": self.history.get_setting("last_input_dir", ""),
-            "last_output_dir": self.history.get_setting("last_output_dir", ""),
+            "last_input_dir": input_dir,
+            "last_output_dir": output_dir,
         }
+        if input_dir:
+            try:
+                files = scan_caj_files(input_dir)
+                settings["scan_ok"] = True
+                settings["scan_count"] = len(files)
+            except Exception as exc:  # noqa: BLE001
+                settings["scan_ok"] = False
+                settings["scan_error"] = str(exc)
+        return settings
 
     def set_theme(self, theme: str) -> dict[str, bool]:
         if theme not in ("light", "dark", "system"):
@@ -116,3 +130,20 @@ class Api:
             return {"ok": False, "error": "批次不存在"}
         items = self.history.get_batch_items(batch_id)
         return {"ok": True, "batch": batch, "items": items}
+
+    def open_folder(self, path: str) -> dict[str, Any]:
+        if not path:
+            return {"ok": False, "error": "路径为空"}
+        folder = Path(path)
+        if not folder.is_dir():
+            return {"ok": False, "error": "文件夹不存在"}
+        try:
+            if sys.platform == "darwin":
+                subprocess.run(["open", str(folder)], check=True)
+            elif sys.platform == "win32":
+                subprocess.run(["explorer", str(folder)], check=True)
+            else:
+                subprocess.run(["xdg-open", str(folder)], check=True)
+            return {"ok": True}
+        except Exception as exc:  # noqa: BLE001
+            return {"ok": False, "error": str(exc)}

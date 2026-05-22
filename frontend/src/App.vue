@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { callApi } from './api.js'
 
 const inputDir = ref('')
@@ -31,6 +31,27 @@ const isRunning = computed(() => progress.value.state === 'running')
 const isPaused = computed(() => progress.value.state === 'paused')
 const isBusy = computed(() => ['running', 'paused'].includes(progress.value.state))
 const isDone = computed(() => ['completed', 'cancelled'].includes(progress.value.state))
+
+const outputFolderPath = computed(() => outputDir.value || progress.value.output_dir)
+
+const canOpenOutputFolder = computed(
+  () => !isBusy.value && Boolean(outputFolderPath.value) && isDone.value
+)
+
+const displayTotal = computed(() => {
+  if (isBusy.value || isDone.value) return progress.value.total
+  return fileCount.value ?? 0
+})
+
+function applyScanResult(res) {
+  if (res.ok) {
+    fileCount.value = res.count
+    errorMsg.value = ''
+  } else {
+    fileCount.value = null
+    if (res.error) errorMsg.value = res.error
+  }
+}
 
 function applyTheme(value) {
   const root = document.documentElement
@@ -68,7 +89,7 @@ async function pickFolder(kind) {
   }
   if (kind === 'input') {
     inputDir.value = res.path
-    await refreshScan()
+    if (!readyForInputWatch.value) await refreshScan()
   } else {
     outputDir.value = res.path
   }
@@ -80,12 +101,7 @@ async function refreshScan() {
     return
   }
   const res = await callApi('scan_input', inputDir.value)
-  if (res.ok) {
-    fileCount.value = res.count
-  } else {
-    fileCount.value = null
-    errorMsg.value = res.error
-  }
+  applyScanResult(res)
 }
 
 async function startConversion() {
@@ -106,6 +122,14 @@ async function resumeConversion() {
 
 async function cancelConversion() {
   await callApi('cancel_conversion')
+}
+
+async function openOutputFolder() {
+  errorMsg.value = ''
+  const res = await callApi('open_folder', outputFolderPath.value)
+  if (!res.ok) {
+    errorMsg.value = res.error || '无法打开文件夹'
+  }
 }
 
 async function loadHistory() {
@@ -164,6 +188,14 @@ window.__onProgressUpdate = (payload) => {
   progress.value = payload
 }
 
+const readyForInputWatch = ref(false)
+
+watch(inputDir, (dir) => {
+  if (!readyForInputWatch.value) return
+  if (dir) refreshScan()
+  else fileCount.value = null
+})
+
 onMounted(async () => {
   try {
     const info = await callApi('get_app_info')
@@ -174,10 +206,24 @@ onMounted(async () => {
     inputDir.value = settings.last_input_dir || ''
     outputDir.value = settings.last_output_dir || ''
     applyTheme(theme.value)
-    if (inputDir.value) await refreshScan()
-    progress.value = await callApi('get_progress')
+    if (settings.scan_ok !== undefined) {
+      applyScanResult({
+        ok: settings.scan_ok,
+        count: settings.scan_count,
+        error: settings.scan_error,
+      })
+    } else if (inputDir.value) {
+      await refreshScan()
+    }
   } catch (e) {
     errorMsg.value = e.message
+  }
+  try {
+    progress.value = await callApi('get_progress')
+  } catch (e) {
+    if (!errorMsg.value) errorMsg.value = e.message
+  } finally {
+    readyForInputWatch.value = true
   }
 })
 
@@ -291,7 +337,7 @@ onUnmounted(() => {
 
           <div class="grid grid-cols-3 gap-3 text-center">
             <div class="rounded-lg bg-slate-50 py-3 dark:bg-slate-800/50">
-              <div class="text-lg font-semibold tabular-nums">{{ progress.total }}</div>
+              <div class="text-lg font-semibold tabular-nums">{{ displayTotal }}</div>
               <div class="text-xs text-slate-500">总计</div>
             </div>
             <div class="rounded-lg bg-slate-50 py-3 dark:bg-slate-800/50">
@@ -337,6 +383,13 @@ onUnmounted(() => {
             <button v-if="isPaused" class="btn-secondary" @click="resumeConversion">继续</button>
             <button v-if="isBusy" class="btn-secondary text-red-600" @click="cancelConversion">
               取消
+            </button>
+            <button
+              v-if="canOpenOutputFolder"
+              class="btn-secondary"
+              @click="openOutputFolder"
+            >
+              打开文件夹
             </button>
           </div>
 
