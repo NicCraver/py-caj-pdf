@@ -17,8 +17,9 @@ OutputBaseFilename=CAJ-PDF-Windows-Setup
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
-ArchitecturesAllowed=x64
-ArchitecturesInstallIn64BitMode=x64
+; x64compatible：允许在 Windows 11 ARM64（Parallels 等虚拟机）上安装 x64 应用
+ArchitecturesAllowed=x64compatible
+ArchitecturesInstallIn64BitMode=x64compatible
 PrivilegesRequired=lowest
 
 [Tasks]
