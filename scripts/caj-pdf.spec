@@ -2,7 +2,7 @@
 import sys
 from pathlib import Path
 
-root = Path(SPECPATH).parent.parent
+root = Path(SPECPATH).parent
 icon_macos = root / "resources" / "icon.icns"
 icon_windows = root / "resources" / "icon.ico"
 
