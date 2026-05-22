@@ -1,0 +1,5 @@
+# Place bundled mutool binaries here:
+# resources/bin/macos-universal/mutool
+# resources/bin/macos-universal/lib/
+# resources/bin/win64/mutool.exe
+# resources/bin/win64/lib/

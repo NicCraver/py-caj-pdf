@@ -1,0 +1,130 @@
+name: Build
+
+on:
+  push:
+    branches: [main, master]
+    tags: ["v*"]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build (${{ matrix.label }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            label: macOS
+            python: "3.12"
+            archive: CAJ-PDF-macOS.zip
+          - os: windows-latest
+            label: Windows
+            python: "3.12"
+            archive: CAJ-PDF-Windows.zip
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Ensure caj2pdf vendor
+        shell: bash
+        run: |
+          if [ ! -f backend/vendor/caj2pdf/cajparser.py ]; then
+            git clone --depth 1 https://github.com/caj2pdf/caj2pdf.git backend/vendor/caj2pdf
+          fi
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e . pyinstaller
+
+      - name: Bundle mutool (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install mupdf
+          mkdir -p resources/bin/macos-universal
+          cp "$(brew --prefix mupdf)/bin/mutool" resources/bin/macos-universal/mutool
+          chmod +x resources/bin/macos-universal/mutool
+
+      - name: Bundle mutool (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $ver = "1.24.10"
+          $url = "https://mupdf.com/downloads/archive/mupdf-$ver-windows.zip"
+          Invoke-WebRequest -Uri $url -OutFile mupdf.zip
+          Expand-Archive -Path mupdf.zip -DestinationPath mupdf-extract
+          $mutool = Get-ChildItem -Path mupdf-extract -Recurse -Filter mutool.exe | Select-Object -First 1
+          if (-not $mutool) { throw "mutool.exe not found in MuPDF archive" }
+          New-Item -ItemType Directory -Force -Path resources/bin/win64 | Out-Null
+          Copy-Item $mutool.FullName resources/bin/win64/mutool.exe
+
+      - name: PyInstaller build (macOS)
+        if: runner.os == 'macOS'
+        run: pyinstaller scripts/caj-pdf.spec --noconfirm
+
+      - name: PyInstaller build (Windows)
+        if: runner.os == 'Windows'
+        run: pyinstaller scripts/caj-pdf.spec --noconfirm
+
+      - name: Archive (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          cd dist
+          zip -r "../${{ matrix.archive }}" "CAJ转PDF.app"
+
+      - name: Archive (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "dist/CAJ转PDF/*" -DestinationPath "${{ matrix.archive }}" -Force
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.archive }}
+          path: ${{ matrix.archive }}
+          retention-days: 30
+
+  release:
+    name: Publish release assets
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*
+          generate_release_notes: true
