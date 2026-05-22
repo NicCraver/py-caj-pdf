@@ -64,4 +64,9 @@ if sys.platform == 'darwin':
         name='CAJ转PDF.app',
         icon=str(icon_macos) if icon_macos.is_file() else None,
         bundle_identifier='com.cajpdf.desktop',
+        info_plist={
+            'CFBundleName': 'CAJ 转 PDF',
+            'CFBundleDisplayName': 'CAJ 转 PDF',
+            'LSHasLocalizedDisplayName': True,
+        },
     )

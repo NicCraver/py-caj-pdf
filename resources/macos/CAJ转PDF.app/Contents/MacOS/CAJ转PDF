@@ -1,0 +1,29 @@
+#!/bin/sh
+""":"
+exec "$(dirname "$0")/../../../../../.venv/bin/python" "$0" "$@"
+":"""
+from __future__ import annotations
+
+import os
+import sys
+from pathlib import Path
+
+
+def _project_root() -> Path:
+    # .../resources/macos/CAJ转PDF.app/Contents/MacOS/CAJ转PDF
+    return Path(__file__).resolve().parents[5]
+
+
+def main() -> None:
+    root = _project_root()
+    os.chdir(root)
+    if str(root) not in sys.path:
+        sys.path.insert(0, str(root))
+
+    from backend.main import main as run_app
+
+    run_app()
+
+
+if __name__ == "__main__":
+    main()

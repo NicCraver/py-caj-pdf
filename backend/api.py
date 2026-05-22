@@ -5,6 +5,7 @@ from typing import Any
 
 import webview
 
+from backend.config import APP_NAME
 from backend.converter import check_mutool_available
 from backend.history import HistoryStore
 from backend.queue_manager import QueueManager
@@ -33,7 +34,7 @@ class Api:
     def get_app_info(self) -> dict[str, Any]:
         ok, mutool = check_mutool_available()
         return {
-            "name": "CAJ转PDF",
+            "name": APP_NAME,
             "version": "0.1.0",
             "mutool_ok": ok,
             "mutool_path": mutool if ok else "",

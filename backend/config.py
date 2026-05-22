@@ -4,7 +4,7 @@ import os
 import sys
 from pathlib import Path
 
-APP_NAME = "CAJ转PDF"
+APP_NAME = "CAJ 转 PDF"
 APP_VERSION = "0.1.0"
 
 
@@ -30,6 +30,19 @@ DB_PATH = DATA_DIR / "history.db"
 
 def ensure_data_dir() -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def app_icon_path() -> Path | None:
+    if sys.platform == "darwin":
+        candidates = [RESOURCES_DIR / "icon.icns", RESOURCES_DIR / "icon.png"]
+    elif sys.platform == "win32":
+        candidates = [RESOURCES_DIR / "icon.ico", RESOURCES_DIR / "icon.png"]
+    else:
+        candidates = [RESOURCES_DIR / "icon.png"]
+    for path in candidates:
+        if path.is_file():
+            return path
+    return None
 
 
 def setup_caj2pdf_path() -> None:

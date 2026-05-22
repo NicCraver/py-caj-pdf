@@ -35,7 +35,10 @@ pip install -e .
 # 前端构建
 cd frontend && npm install && npm run build && cd ..
 
-# 启动应用
+# 启动应用（macOS 推荐，Dock / 菜单栏显示正确名称）
+./scripts/run_macos.sh
+
+# 或直接运行 Python 模块（Dock 可能仍显示 Python）
 python -m backend.main
 ```
 
