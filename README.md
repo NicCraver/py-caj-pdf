@@ -66,12 +66,12 @@ cd frontend && npm run build && cd ..
 Mac 上无法直接打 Windows 包，可推送到 GitHub 后由 Actions 在云端构建：
 
 1. 创建 GitHub 仓库并推送代码
-2. 打开 **Actions** → **Build** → **Run workflow**（或 push 到 `main` 自动触发）
-3. 构建完成后在 **Artifacts** 下载：
+2. push 到 `main` / `master` 后会自动构建，并更新 GitHub Releases 里的 `latest` 预发布包
+3. 也可以打开 **Actions** → **Build** → **Run workflow** 手动构建，构建完成后在 **Artifacts** 下载：
    - `CAJ-PDF-Windows-Setup.exe`（Windows 安装程序）
    - `CAJ-PDF-macOS.dmg`（macOS 磁盘映像）
 
-打 tag（如 `v0.1.0`）并 push 后，会自动创建 GitHub Release 并附上上述安装包。
+打 tag（如 `v0.1.0`）并 push 后，仍会自动创建对应版本的 GitHub Release 并附上上述安装包。
 
 ## 技术栈
 

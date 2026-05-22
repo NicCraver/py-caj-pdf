@@ -116,7 +116,7 @@ jobs:
   release:
     name: Publish release assets
     needs: build
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'push' && (github.ref_type == 'tag' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -127,8 +127,39 @@ jobs:
           path: artifacts
           merge-multiple: true
 
+      - name: Move latest tag for branch builds
+        if: github.ref_type == 'branch'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const ref = 'tags/latest';
+            try {
+              await github.rest.git.updateRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref,
+                sha: context.sha,
+                force: true,
+              });
+            } catch (error) {
+              if (![404, 422].includes(error.status)) throw error;
+              await github.rest.git.createRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: `refs/${ref}`,
+                sha: context.sha,
+              });
+            }
+
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || 'latest' }}
+          name: ${{ github.ref_type == 'tag' && github.ref_name || 'Latest push build' }}
+          target_commitish: ${{ github.sha }}
           files: artifacts/*
-          generate_release_notes: true
+          generate_release_notes: ${{ github.ref_type == 'tag' }}
+          body: ${{ github.ref_type == 'branch' && format('Automated release package from `{0}` at commit `{1}`.', github.ref_name, github.sha) || '' }}
+          prerelease: ${{ github.ref_type == 'branch' }}
+          make_latest: ${{ github.ref_type == 'tag' }}
+          overwrite_files: true
