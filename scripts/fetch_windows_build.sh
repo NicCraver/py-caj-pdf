@@ -10,8 +10,12 @@ echo "==> 触发 GitHub Actions Build 工作流"
 gh workflow run Build --ref "$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo main)"
 
 echo "==> 等待最新运行完成"
-run_id="$(gh run list --workflow=Build --limit 1 --json databaseId --jq '.[0].databaseId')"
-gh run watch "$run_id"
+run_id="$(gh run list -w Build -L 1 | awk -F'\t' '{print $7}')"
+if [[ -z "$run_id" || ! "$run_id" =~ ^[0-9]+$ ]]; then
+  echo "无法解析 Build 工作流 run id，请检查 gh 版本或手动执行: gh run watch <run-id>" >&2
+  exit 1
+fi
+gh run watch "$run_id" --exit-status
 
 echo "==> 下载 Windows 安装包"
 tmpdir="$(mktemp -d)"
